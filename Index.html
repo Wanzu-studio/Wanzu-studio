@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wanzu Studio DAW Pro</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        studioDark: '#050814',
+                        studioPanel: '#0d1424',
+                        studioCard: '#151e36',
+                        accentCyan: '#00f0ff',
+                        accentMagenta: '#ff2a6d',
+                        accentGreen: '#10b981',
+                        accentYellow: '#f59e0b'
+                    },
+                    boxShadow: {
+                        'cyan-glow': '0 0 20px rgba(0, 240, 255, 0.35)',
+                        'magenta-glow': '0 0 20px rgba(255, 42, 109, 0.4)',
+                        'mic-glow': '0 0 35px rgba(0, 240, 255, 0.5)'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for Studio Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #050814;
+            color: #ffffff;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            user-select: none;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d1a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00f0ff;
+        }
+        /* Studio Range Inputs */
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: #090d1a;
+            border-radius: 4px;
+            height: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: #00f0ff;
+            cursor: pointer;
+            box-shadow: 0 0 8px #00f0ff;
+        }
+        /* Pulsing Recording State */
+        @keyframes micPulse {
+            0% { box-shadow: 0 0 15px rgba(255, 42, 109, 0.4); transform: scale(1); }
+            50% { box-shadow: 0 0 40px rgba(255, 42, 109, 0.95); transform: scale(1.04); }
+            100% { box-shadow: 0 0 15px rgba(255, 42, 109, 0.4); transform: scale(1); }
+        }
+        .mic-recording {
+            animation: micPulse 1.2s infinite ease-in-out;
+            background: radial-gradient(circle, #ff2a6d 0%, #800020 100%) !important;
+            border-color: #ff2a6d !important;
+        }
+        /* Active Beat Pad Toggle */
+        .beat-active {
+            border-color: #00f0ff !important;
+            background: rgba(0, 240, 255, 0.15) !important;
+            box-shadow: inset 0 0 12px rgba(0, 240, 255, 0.4);
+        }
+        .beat-triggering {
+            background: #00f0ff !important;
+            color: #050814 !important;
+        }
+    </style>
+</head>
+<body class="p-2 md:p-6 min-h-screen flex flex-col justify-between">
+
+    <!-- DAW HEADER & NAVIGATION -->
+    <header class="max-w-7xl mx-auto w-full mb-4">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-studioPanel p-4 rounded-xl border border-white/10 shadow-2xl">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-tr from-accentCyan to-accentMagenta flex items-center justify-center text-studioDark font-black text-xl shadow-cyan-glow">
+                    <i class="fa-solid fa-compact-disc fa-spin" style="animation-duration: 8s;"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-accentCyan via-white to-accentMagenta uppercase">
+                        Wanzu Studio DAW Pro
+                    </h1>
+                    <p class="text-xs text-slate-400 font-mono">ULTIMATE MULTI-TRACK AUDIO ENGINE & BEAT SEQUENCER</p>
+                </div>
+            </div>
+
+            <!-- GLOBAL PROJECT / FILE CONTROLS -->
+            <div class="flex flex-wrap items-center gap-2">
+                <button onclick="saveProject()" class="px-3 py-2 bg-studioCard hover:bg-slate-800 border border-emerald-500/40 text-emerald-400 rounded-lg text-xs font-bold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-floppy-disk"></i> Save (.wanzu)
+                </button>
+                <label class="px-3 py-2 bg-studioCard hover:bg-slate-800 border border-accentCyan/40 text-accentCyan rounded-lg text-xs font-bold cursor-pointer transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-folder-open"></i> Load Project
+                    <input type="file" accept=".wanzu" onchange="loadProject(event)" class="hidden">
+                </label>
+                <label class="px-3 py-2 bg-studioCard hover:bg-slate-800 border border-accentMagenta/40 text-accentMagenta rounded-lg text-xs font-bold cursor-pointer transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-audio"></i> Import Beat
+                    <input type="file" accept="audio/*" onchange="importCustomBeat(event)" class="hidden">
+                </label>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN STUDIO WORKSPACE -->
+    <main class="max-w-7xl mx-auto w-full flex-grow grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT COLUMN: STUDIO TRANSPORT, BEATS & INSTRUMENTS (7 COLS) -->
+        <div class="lg:col-span-7 flex flex-col gap-6">
+
+            <!-- MASTER TEMPO & PLAYBACK CONTROL BAR -->
+            <div class="bg-studioPanel p-4 rounded-xl border border-white/10 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <button id="masterPlayBtn" onclick="toggleMasterPlayback()" class="w-12 h-12 rounded-full bg-accentCyan hover:bg-cyan-300 text-studioDark font-black text-lg flex items-center justify-center transition shadow-cyan-glow">
+                        <i class="fa-solid fa-play" id="masterPlayIcon"></i>
+                    </button>
+                    <div>
+                        <div class="text-xs text-slate-400 font-mono uppercase">Master Transport</div>
+                        <div class="text-sm font-bold text-white" id="transportTimeDisplay">00:00.00</div>
+                    </div>
+                </div>
+
+                <!-- BPM SLIDER -->
+                <div class="flex items-center gap-3 bg-studioDark px-3 py-2 rounded-lg border border-white/5">
+                    <i class="fa-solid fa-stopwatch text-accentCyan text-sm"></i>
+                    <div class="flex flex-col">
+                        <div class="flex justify-between items-center text-xs text-slate-400 font-mono">
+                            <span>TEMPO</span>
+                            <span id="bpmValue" class="text-accentCyan font-bold">120 BPM</span>
+                        </div>
+                        <input type="range" id="bpmSlider" min="60" max="180" value="120" oninput="updateBPM(this.value)" class="w-28 md:w-36">
+                    </div>
+                </div>
+
+                <!-- METRONOME TOGGLE -->
+                <button id="metronomeBtn" onclick="toggleMetronome()" class="px-3 py-2 bg-studioDark border border-white/10 hover:border-accentCyan/50 rounded-lg text-xs font-bold text-slate-300 transition flex items-center gap-2">
+                    <i class="fa-solid fa-bell"></i> Click
+                </button>
+            </div>
+
+            <!-- BEAT MATRIX & MULTI-LAYER LOOP STATION -->
+            <div class="bg-studioPanel p-5 rounded-xl border border-white/10 flex flex-col gap-4 shadow-xl">
+                <div class="flex justify-between items-center border-b border-white/10 pb-3">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-layer-group text-accentCyan"></i>
+                        <h2 class="text-sm font-black uppercase tracking-wider text-white">Multi-Beat Layer Station</h2>
+                    </div>
+                    <span class="text-xs text-slate-400 font-mono">Combine Multiple Rhythms Together</span>
+                </div>
+
+                <!-- MASTER PLAY ALL BEATS TOGGLE -->
+                <div class="flex items-center justify-between bg-studioCard p-3 rounded-lg border border-accentCyan/30">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-accentCyan animate-pulse"></div>
+                        <span class="text-xs font-bold text-slate-200">Simultaneous Multi-Beat Engine</span>
+                    </div>
+                    <button id="playAllBeatsBtn" onclick="toggleAllSelectedBeats()" class="px-4 py-2 bg-gradient-to-r from-accentCyan to-blue-600 text-studioDark font-black text-xs rounded-md shadow-cyan-glow hover:opacity-90 transition">
+                        <i class="fa-solid fa-sliders"></i> PLAY ALL SELECTED BEATS
+                    </button>
+                </div>
+
+                <!-- BEAT PRESET LAYERS GRID -->
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3" id="beatLayersGrid">
+                    <!-- Layer 1: Afrobeats Kick -->
+                    <div class="beat-card bg-studioCard p-3 rounded-lg border border-white/10 flex flex-col justify-between gap-2 cursor-pointer transition hover:border-accentCyan/50" id="beatCard-afro" onclick="toggleBeatLayer('afro')">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-white">Afrobeats Kick</span>
+                            <span class="w-2.5 h-2.5 rounded-full bg-slate-600" id="indicator-afro"></span>
+                        </div>
+                        <p class="text-[10px] text-slate-400">Warm sub-kick & acoustic bounce</p>
+                    </div>
+
+                    <!-- Layer 2: Amapiano Log Drum -->
+                    <div class="beat-card bg-studioCard p-3 rounded-lg border border-white/10 flex flex-col justify-between gap-2 cursor-pointer transition hover:border-accentCyan/50" id="beatCard-amapiano" onclick="toggleBeatLayer('amapiano')">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-white">Amapiano Log Drum</span>
+                            <span class="w-2.5 h-2.5 rounded-full bg-slate-600" id="indicator-amapiano"></span>
+                        </div>
+                        <p class="text-[10px] text-slate-400">Deep pitch-bent percussive bass</p>
+                    </div>
+
+                    <!-- Layer 3: Trap Snare & Claps -->
+                    <div class="beat-card bg-studioCard p-3 rounded-lg border border-white/10 flex flex-col justify-between gap-2 cursor-pointer transition hover:border-accentCyan/50" id="beatCard-trap" onclick="toggleBeatLayer('trap')">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-white">Trap Snare & Claps</span>
+                            <span class="w-2.5 h-2.5 rounded-full bg-slate-600" id="indicator-trap"></span>
+                        </div>
+                        <p class="text-[10px] text-slate-400">Crispy backbeats & rim snaps</p>
+                    </div>
+
+                    <!-- Layer 4: Hi-Hat Rolls -->
+                    <div class="beat-card bg-studioCard p-3 rounded-lg border border-white/10 flex flex-col justify-between gap-2 cursor-pointer transition hover:border-accentCyan/50" id="beatCard-hats" onclick="toggleBeatLayer('hats')">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-white">Hi-Hat Rolls</span>
+                            <span class="w-2.5 h-2.5 rounded-full bg-slate-600" id="indicator-hats"></span>
+                        </div>
+                        <p class="text-[10px] text-slate-400">Fast 16th triplets & open hats</p>
+                    </div>
+
+                    <!-- Layer 5: Shaker & Percussion -->
+                    <div class="beat-card bg-studioCard p-3 rounded-lg border border-white/10 flex flex-col justify-between gap-2 cursor-pointer transition hover:border-accentCyan/50" id="beatCard-shaker" onclick="toggleBeatLayer('shaker')">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-white">Shaker Groove</span>
+                            <span class="w-2.5 h-2.5 rounded-full bg-slate-600" id="indicator-shaker"></span>
+                        </div>
+                        <p class="text-[10px] text-slate-400">Organic shaker & tambourine</p>
+                    </div>
+
+                    <!-- Layer 6: 808 Synth Sub Bass -->
+                    <div class="beat-card bg-studioCard p-3 rounded-lg border border-white/10 flex flex-col justify-between gap-2 cursor-pointer transition hover:border-accentCyan/50" id="beatCard-sub808" onclick="toggleBeatLayer('sub808')">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-white">808 Synth Bass</span>
+                            <span class="w-2.5 h-2.5 rounded-full bg-slate-600" id="indicator-sub808"></span>
+                        </div>
+                        <p class="text-[10px] text-slate-400">Heavy distorted low-end glide</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIRTUAL SOUNDFONT SYNTHESIZER & INSTRUMENTS -->
+            <div class="bg-studioPanel p-5 rounded-xl border border-white/10 flex flex-col gap-4 shadow-xl">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 pb-3 gap-2">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-guitar text-accentMagenta"></i>
+                        <h2 class="text-sm font-black uppercase tracking-wider text-white">Virtual Instruments Engine</h2>
+                    </div>
+                    <!-- INSTRUMENT SELECTOR DROPDOWN -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-400 font-mono">Sound:</span>
+                        <select id="synthInstrumentSelect" class="bg-studioDark text-accentCyan text-xs font-bold border border-white/10 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-accentCyan">
+                            <option value="piano">🎹 Grand Piano</option>
+                            <option value="acoustic-guitar">🎸 Acoustic Guitar</option>
+                            <option value="electric-guitar">⚡ Electric Lead Guitar</option>
+                            <option value="bass-guitar">🎸 Bass Guitar</option>
+                            <option value="sub808">🔊 808 Sub Bass</option>
+                            <option value="synth-lead">🎛 Synth Lead</option>
+                            <option value="brass">🎺 Brass Ensemble</option>
+                            <option value="strings">🎻 String Section</option>
+                            <option value="flute">🪈 Flute</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- PLAYABLE PIANO & INSTRUMENT KEYBOARD (OCTAVE C3 to C5) -->
+                <div class="overflow-x-auto pb-2">
+                    <div class="flex gap-1 min-w-[550px] justify-between bg-studioDark p-2 rounded-lg border border-white/5" id="keyboardContainer">
+                        <!-- Keyboard keys injected dynamically in JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- MPC STYLE DRUM PADS -->
+            <div class="bg-studioPanel p-5 rounded-xl border border-white/10 flex flex-col gap-4 shadow-xl">
+                <div class="flex justify-between items-center border-b border-white/10 pb-3">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-drum text-accentYellow"></i>
+                        <h2 class="text-sm font-black uppercase tracking-wider text-white">12-Pad MPC Drum Machine</h2>
+                    </div>
+                    <span class="text-xs text-slate-400 font-mono">Real-Time Studio Percussion</span>
+                </div>
+
+                <div class="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                    <button class="p-3 bg-studioCard hover:bg-slate-800 border border-white/10 rounded-lg font-bold text-xs text-slate-200 active:bg-accentCyan active:text-studioDark transition text-center" onclick="triggerDrum('kick', this)">KICK 1</button>
+                    <button class="p-3 bg-studioCard hover:bg-slate-800 border border-white/10 rounded-lg font-bold text-xs text-slate-200 active:bg-accentCyan active:text-studioDark transition text-center" onclick="triggerDrum('kick2', this)">KICK 2</button>
+                    <button class="p-3 bg-studioCard hover:bg-slate-800 border border-white/10 rounded-lg font-bold text-xs text-slate-200 active:bg-accentCyan active:text-studioDark transition text-center" onclick="triggerDrum('snare', this)">SNARE 1</button>
+                    <button class="p-3 bg-studioCard hover:bg-slate-800 border border-white/10 rounded-lg font-bold text-xs text-slate-200 active:bg-accentCyan active:text-studioDark transition text-center" onclick="triggerDrum('snare2', this)">SNARE 2</button>
+                    
+                    <button class="p-3 bg-studioCard hover:bg-slate-800 border border-white/10 rounded-lg font-bold text-xs text-slate-200 active:bg-accentCyan active:text-studioDark transition text-center" onclick="triggerDrum('hihat', this)">CLOSED HAT</button>
+                    <button class="p-3 bg-studioCard hover:bg-slate-800 border border-white/10 rounded-lg font-bold text-xs text-slate-200 active:bg-accentCyan active:text-studioDark transition text-center" onclick="triggerDrum('openhat', this)">OPEN HAT</button>
+                    <button class="p-3 bg-studioCard hover:bg-slate-800 border border-white/10 rounded-lg font-bold text-xs text-slate-200 active:bg-accentCyan active:text-studioDark transition text-center" onclick="triggerDrum('clap', this)">CLAP</button>
+                    <button class="p-3 bg-studioCard hover:bg-slate-800 border border-white/10 rounded-lg font-bold text-xs text-slate-200 active:bg-accentCyan active:text-studioDark transition text-center" onclick="triggerDrum('rim', this)">RIMSHOT</button>
+                    
+                    <button class="p-3 bg-studioCard hover:bg-slate-800 border border-white/10 rounded-lg font-bold text-xs text-slate-200 active:bg-accentCyan active:text-studioDark transition text-center" onclick="triggerDrum('tomLow', this)">LOW TOM</button>
+                    <button class="p-3 bg-studioCard hover:bg-slate-800 border border-white/10 rounded-lg font-bold text-xs text-slate-200 active:bg-accentCyan active:text-studioDark transition text-center" onclick="triggerDrum('tomHi', this)">HIGH TOM</button>
+                    <button class="p-3 bg-studioCard hover:bg-slate-800 border border-white/10 rounded-lg font-bold text-xs text-slate-200 active:bg-accentCyan active:text-studioDark transition text-center" onclick="triggerDrum('crash', this)">CRASH</button>
+                    <button class="p-3 bg-studioCard hover:bg-slate-800 border border-white/10 rounded-lg font-bold text-xs text-slate-200 active:bg-accentCyan active:text-studioDark transition text-center" onclick="triggerDrum('shaker', this)">SHAKER</button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN: VOCAL BOOTH, AUTO-TUNE FX & VOCAL LANES (5 COLS) -->
+        <div class="lg:col-span-5 flex flex-col gap-6">
+
+            <!-- MASTER VOCAL BOOTH MIC BUTTON -->
+            <div class="bg-studioPanel p-5 rounded-xl border border-white/10 flex flex-col items-center justify-center gap-3 text-center shadow-2xl relative overflow-hidden">
+                <div class="absolute top-3 left-3 text-[10px] font-mono text-accentCyan bg-accentCyan/10 px-2 py-0.5 rounded border border-accentCyan/20">
+                    VOCAL BOOTH
+                </div>
+
+                <!-- MAIN MIC BUTTON -->
+                <button id="masterMicButton" onclick="toggleMasterRecording()" class="w-24 h-24 rounded-full bg-studioCard border-2 border-accentCyan text-accentCyan flex items-center justify-center text-3xl shadow-mic-glow hover:scale-105 transition duration-200 mt-2">
+                    <i class="fa-solid fa-microphone" id="micIcon"></i>
+                </button>
+
+                <div>
+                    <div class="text-xs font-bold text-white uppercase tracking-wider" id="targetTrackLabel">Target: Track 1 (Lead Vocal)</div>
+                    <p class="text-[11px] text-slate-400 mt-0.5" id="micStatusText">Tap microphone button to start recording</p>
+                </div>
+            </div>
+
+            <!-- VOCAL CLEANER & REAL-TIME AUTO-TUNE FX RACK -->
+            <div class="bg-studioPanel p-5 rounded-xl border border-white/10 flex flex-col gap-4 shadow-xl">
+                <div class="flex justify-between items-center border-b border-white/10 pb-3">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-accentCyan"></i>
+                        <h2 class="text-sm font-black uppercase tracking-wider text-white">Vocal FX & Pitch Correction</h2>
+                    </div>
+                    <span class="text-xs text-emerald-400 font-mono">Active Processing</span>
+                </div>
+
+                <!-- AUTO-TUNE KEY & SCALE SELECTOR -->
+                <div class="grid grid-cols-2 gap-3 bg-studioCard p-3 rounded-lg border border-white/5">
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] text-slate-400 font-mono">Key Scale</label>
+                        <select id="autoTuneKeySelect" class="bg-studioDark text-accentCyan text-xs font-bold border border-white/10 rounded px-2 py-1.5 focus:outline-none">
+                            <option value="C">C Key</option>
+                            <option value="D">D Key</option>
+                            <option value="E">E Key</option>
+                            <option value="F">F Key</option>
+                            <option value="G">G Key</option>
+                            <option value="A">A Key</option>
+                            <option value="B">B Key</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[11px] text-slate-400 font-mono">Scale Type</label>
+                        <select id="autoTuneScaleSelect" class="bg-studioDark text-accentCyan text-xs font-bold border border-white/10 rounded px-2 py-1.5 focus:outline-none">
+                            <option value="major">Major (Standard)</option>
+                            <option value="minor">Minor (Trap/R&B)</option>
+                            <option value="pentatonic">Pentatonic</option>
+                            <option value="chromatic">Chromatic (Off)</option>
+                        </select>
+                    </div>
+
+                    <div class="col-span-2 flex flex-col gap-1 mt-1">
+                        <div class="flex justify-between text-[11px] text-slate-400 font-mono">
+                            <span>Retune Speed (Hard T-Pain -> Natural)</span>
+                            <span id="retuneValDisplay" class="text-accentCyan font-bold">10 ms</span>
+                        </div>
+                        <input type="range" id="retuneSpeedSlider" min="0" max="100" value="10" oninput="document.getElementById('retuneValDisplay').textContent = this.value + ' ms'" class="w-full">
+                    </div>
+                </div>
+
+                <!-- VOCAL CLEANER (NOISE GATE & LOW CUT) -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="flex flex-col gap-1 bg-studioCard p-2.5 rounded-lg border border-white/5">
+                        <label class="text-[11px] text-slate-400 font-mono">Room Low-Cut Filter</label>
+                        <select id="noiseGateSelect" class="bg-studioDark text-slate-200 text-xs border border-white/10 rounded px-2 py-1">
+                            <option value="120">120Hz Low Cut (On)</option>
+                            <option value="80">80Hz Subtle Cut</option>
+                            <option value="0">Off (Raw Input)</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col gap-1 bg-studioCard p-2.5 rounded-lg border border-white/5">
+                        <label class="text-[11px] text-slate-400 font-mono">Spatial Echo Delay</label>
+                        <input type="range" id="delaySlider" min="0" max="0.8" step="0.05" value="0.25" class="w-full">
+                    </div>
+                </div>
+
+                <!-- 3-BAND PARAMETRIC EQ -->
+                <div class="bg-studioCard p-3 rounded-lg border border-white/5 flex flex-col gap-2">
+                    <span class="text-[11px] font-bold text-slate-300 font-mono">3-Band Equalizer</span>
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div>
+                            <span class="text-[10px] text-slate-400 block mb-1">Bass</span>
+                            <input type="range" id="eqBass" min="-12" max="12" value="2" class="w-full">
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-400 block mb-1">Mid</span>
+                            <input type="range" id="eqMid" min="-12" max="12" value="0" class="w-full">
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-400 block mb-1">Treble</span>
+                            <input type="range" id="eqTreble" min="-12" max="12" value="3" class="w-full">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4 MULTI-TRACK VOCAL LANES -->
+            <div class="bg-studioPanel p-5 rounded-xl border border-white/10 flex flex-col gap-4 shadow-xl">
+                <div class="flex justify-between items-center border-b border-white/10 pb-3">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-lines-leaning text-accentCyan"></i>
+                        <h2 class="text-sm font-black uppercase tracking-wider text-white">Multi-Track Vocal Console</h2>
+                    </div>
+                    <span class="text-xs text-slate-400 font-mono">4 Vocal Lanes</span>
+                </div>
+
+                <div class="flex flex-col gap-3" id="vocalTracksContainer">
+                    <!-- Tracks dynamically generated in JavaScript -->
+                </div>
+            </div>
+
+            <!-- MASTER BOUNCE & SONG EXPORTER -->
+            <div class="bg-gradient-to-br from-studioCard to-studioPanel p-5 rounded-xl border border-accentCyan/40 flex flex-col gap-3 text-center shadow-cyan-glow">
+                <div class="text-xs font-black uppercase tracking-widest text-accentCyan">Master Song Exporter</div>
+                <p class="text-xs text-slate-300">Bounce all recorded vocal tracks, active beat loops, and synthesizer layers into a final song file.</p>
+                <button onclick="bounceMasterSong()" class="w-full py-3 bg-gradient-to-r from-accentCyan via-blue-500 to-accentMagenta text-studioDark font-black text-sm uppercase rounded-lg shadow-lg hover:opacity-95 transition">
+                    <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> COMBINE & EXPORT MASTER SONG
+                </button>
+                <div id="masterExportResult" class="hidden flex-col gap-2 mt-2">
+                    <audio id="masterPlaybackPlayer" controls class="w-full h-8 rounded-lg bg-studioDark"></audio>
+                    <a id="masterDownloadLink" download="Wanzu_Studio_Master_Song.webm" class="py-2 bg-emerald-500 hover:bg-emerald-400 text-studioDark font-bold text-xs rounded-lg transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-download"></i> Download Full Master Track
+                    </a>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="max-w-7xl mx-auto w-full mt-6 text-center text-xs text-slate-500 border-t border-white/5 pt-4">
+        &copy; 2026 Wanzu Studio DAW Pro &bull; Complete Pro Web Music Creation & Multi-Track Production Environment
+    </footer>
+
+    <!-- JS ENGINE LOGIC -->
+    <script>
+        // --- GLOBAL DAW STATE & VARIABLES ---
+        let audioCtx = null;
+        let masterStream = null;
+        let mediaRecorder = null;
+        let isRecording = false;
+        let targetTrackId = 1;
+        let isMasterPlaying = false;
+        let metronomeInterval = null;
+        let isMetronomeOn = false;
+        let currentBPM = 120;
+
+        // Multi-Track Vocals State
+        const vocalTracks = {
+            1: { name: 'Track 1 (Lead Vocal)', blob: null, url: null, volume: 1.0, pan: 0, mute: false, solo: false, audioEl: null },
+            2: { name: 'Track 2 (Harmony)', blob: null, url: null, volume: 1.0, pan: 0, mute: false, solo: false, audioEl: null },
+            3: { name: 'Track 3 (Ad-libs)', blob: null, url: null, volume: 1.0, pan: 0, mute: false, solo: false, audioEl: null },
+            4: { name: 'Track 4 (Chorus/Backing)', blob: null, url: null, volume: 1.0, pan: 0, mute: false, solo: false, audioEl: null }
+        };
+
+        // Active Beat Layers State
+        const activeBeatLayers = {
+            afro: false,
+            amapiano: false,
+            trap: false,
+            hats: false,
+            shaker: false,
+            sub808: false
+        };
+        let isAllBeatsPlaying = false;
+        let beatClockInterval = null;
+        let beatStep = 0;
+
+        // Custom imported beat
+        let importedBeatBuffer = null;
+
+        // --- INITIALIZATION ---
+        window.addEventListener('DOMContentLoaded', () => {
+            renderKeyboard();
+            renderVocalTracks();
+        });
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // --- RENDER VIRTUAL KEYBOARD ---
+        const notesFrequency = [
+            { note: 'C3', freq: 130.81, isBlack: false },
+            { note: 'C#3', freq: 138.59, isBlack: true },
+            { note: 'D3', freq: 146.83, isBlack: false },
+            { note: 'D#3', freq: 155.56, isBlack: true },
+            { note: 'E3', freq: 164.81, isBlack: false },
+            { note: 'F3', freq: 174.61, isBlack: false },
+            { note: 'F#3', freq: 185.00, isBlack: true },
+            { note: 'G3', freq: 196.00, isBlack: false },
+            { note: 'G#3', freq: 207.65, isBlack: true },
+            { note: 'A3', freq: 220.00, isBlack: false },
+            { note: 'A#3', freq: 233.08, isBlack: true },
+            { note: 'B3', freq: 246.94, isBlack: false },
+            { note: 'C4', freq: 261.63, isBlack: false },
+            { note: 'C#4', freq: 277.18, isBlack: true },
+            { note: 'D4', freq: 293.66, isBlack: false },
+            { note: 'D#4', freq: 311.13, isBlack: true },
+            { note: 'E4', freq: 329.63, isBlack: false },
+            { note: 'F4', freq: 349.23, isBlack: false },
+            { note: 'G4', freq: 392.00, isBlack: false },
+            { note: 'A4', freq: 440.00, isBlack: false },
+            { note: 'B4', freq: 493.88, isBlack: false },
+            { note: 'C5', freq: 523.25, isBlack: false }
+        ];
+
+        function renderKeyboard() {
+            const container = document.getElementById('keyboardContainer');
+            container.innerHTML = '';
+
+            notesFrequency.forEach(item => {
+                const key = document.createElement('button');
+                key.className = item.isBlack 
+                    ? 'h-24 w-7 bg-slate-900 border border-white/20 rounded-b text-[9px] font-bold text-accentCyan flex items-end justify-center pb-1 shadow-md hover:bg-slate-800 active:bg-accentCyan active:text-studioDark'
+                    : 'h-28 w-9 bg-slate-200 border border-slate-400 rounded-b text-[10px] font-bold text-studioDark flex items-end justify-center pb-1 shadow-md hover:bg-white active:bg-accentCyan';
+                key.textContent = item.note;
+                key.onclick = () => playInstrumentNote(item.freq);
+                container.appendChild(key);
+            });
+        }
+
+        // --- PLAY VIRTUAL INSTRUMENT NOTE ---
+        function playInstrumentNote(freq) {
+            initAudioContext();
+            const inst = document.getElementById('synthInstrumentSelect').value;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            if (inst === 'piano') {
+                osc.type = 'triangle';
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
+            } else if (inst === 'acoustic-guitar') {
+                osc.type = 'sawtooth';
+                gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.0);
+            } else if (inst === 'electric-guitar') {
+                osc.type = 'square';
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.4);
+            } else if (inst === 'bass-guitar' || inst === 'sub808') {
+                osc.type = 'sine';
+                gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.5);
+            } else if (inst === 'synth-lead') {
+                osc.type = 'sawtooth';
+                gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+            } else if (inst === 'brass') {
+                osc.type = 'sawtooth';
+                gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.1);
+            } else if (inst === 'strings') {
+                osc.type = 'triangle';
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 2.0);
+            } else {
+                osc.type = 'sine';
+                gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.0);
+            }
+
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 2.0);
+        }
+
+        // --- MPC DRUM MACHINE ENGINE ---
+        function triggerDrum(type, elementBtn) {
+            initAudioContext();
+            if (elementBtn) {
+                elementBtn.classList.add('beat-triggering');
+                setTimeout(() => elementBtn.classList.remove('beat-triggering'), 100);
+            }
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            if (type === 'kick' || type === 'kick2') {
+                osc.frequency.setValueAtTime(type === 'kick' ? 150 : 120, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+                gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+            } else if (type === 'snare' || type === 'snare2') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(280, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.7, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            } else if (type === 'hihat') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(900, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+            } else if (type === 'openhat') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(750, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+            } else if (type === 'clap' || type === 'rim') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(500, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+            } else {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            }
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.4);
+        }
+
+        // --- MULTI-BEAT LOOP STATION (SIMULTANEOUS PLAYBACK) ---
+        function toggleBeatLayer(layerId) {
+            activeBeatLayers[layerId] = !activeBeatLayers[layerId];
+            const card = document.getElementById(`beatCard-${layerId}`);
+            const indicator = document.getElementById(`indicator-${layerId}`);
+
+            if (activeBeatLayers[layerId]) {
+                card.classList.add('beat-active');
+                indicator.className = 'w-2.5 h-2.5 rounded-full bg-accentCyan animate-pulse';
+            } else {
+                card.classList.remove('beat-active');
+                indicator.className = 'w-2.5 h-2.5 rounded-full bg-slate-600';
+            }
+        }
+
+        function toggleAllSelectedBeats() {
+            initAudioContext();
+            const btn = document.getElementById('playAllBeatsBtn');
+
+            if (!isAllBeatsPlaying) {
+                isAllBeatsPlaying = true;
+                btn.innerHTML = '<i class="fa-solid fa-stop"></i> STOP ALL BEATS';
+                btn.className = 'px-4 py-2 bg-accentMagenta text-white font-black text-xs rounded-md shadow-magenta-glow hover:opacity-90 transition';
+
+                const intervalMs = (60 / currentBPM) * 1000 / 4; // 16th Note Clock
+                beatStep = 0;
+
+                beatClockInterval = setInterval(() => {
+                    executeBeatStep(beatStep);
+                    beatStep = (beatStep + 1) % 16;
+                }, intervalMs);
+            } else {
+                isAllBeatsPlaying = false;
+                clearInterval(beatClockInterval);
+                btn.innerHTML = '<i class="fa-solid fa-sliders"></i> PLAY ALL SELECTED BEATS';
+                btn.className = 'px-4 py-2 bg-gradient-to-r from-accentCyan to-blue-600 text-studioDark font-black text-xs rounded-md shadow-cyan-glow hover:opacity-90 transition';
+            }
+        }
+
+        function executeBeatStep(step) {
+            // Afrobeats Kick (Beat 0, 6, 10, 12)
+            if (activeBeatLayers.afro && [0, 6, 10, 12].includes(step)) triggerDrum('kick');
+            // Amapiano Log Drum (Beat 2, 7, 11, 14)
+            if (activeBeatLayers.amapiano && [2, 7, 11, 14].includes(step)) playInstrumentNote(110);
+            // Trap Snare (Beat 4, 12)
+            if (activeBeatLayers.trap && [4, 12].includes(step)) triggerDrum('snare');
+            // Hi-Hats (Every 2nd step)
+            if (activeBeatLayers.hats && step % 2 === 0) triggerDrum('hihat');
+            // Shaker (Every step)
+            if (activeBeatLayers.shaker) triggerDrum('shaker');
+            // 808 Sub Bass (Beat 0, 8)
+            if (activeBeatLayers.sub808 && [0, 8].includes(step)) playInstrumentNote(65.41);
+        }
+
+        function updateBPM(val) {
+            currentBPM = parseInt(val);
+            document.getElementById('bpmValue').textContent = `${val} BPM`;
+            if (isAllBeatsPlaying) {
+                toggleAllSelectedBeats();
+                toggleAllSelectedBeats();
+            }
+        }
+
+        function toggleMetronome() {
+            initAudioContext();
+            isMetronomeOn = !isMetronomeOn;
+            const btn = document.getElementById('metronomeBtn');
+
+            if (isMetronomeOn) {
+                btn.classList.add('border-accentCyan', 'text-accentCyan');
+                const intervalMs = (60 / currentBPM) * 1000;
+                metronomeInterval = setInterval(() => {
+                    triggerDrum('rim');
+                }, intervalMs);
+            } else {
+                btn.classList.remove('border-accentCyan', 'text-accentCyan');
+                clearInterval(metronomeInterval);
+            }
+        }
+
+        // --- RENDER VOCAL TRACK LANES ---
+        function renderVocalTracks() {
+            const container = document.getElementById('vocalTracksContainer');
+            container.innerHTML = '';
+
+            Object.keys(vocalTracks).forEach(id => {
+                const trk = vocalTracks[id];
+                const isTarget = parseInt(id) === targetTrackId;
+
+                const card = document.createElement('div');
+                card.className = `bg-studioCard p-3 rounded-lg border ${isTarget ? 'border-accentCyan shadow-cyan-glow' : 'border-white/10'} flex flex-col gap-2`;
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-white">${trk.name}</span>
+                            <span class="text-[10px] font-mono ${trk.blob ? 'text-emerald-400' : 'text-slate-500'}">${trk.blob ? '● Audio Recorded' : 'Empty'}</span>
+                        </div>
+                        <button onclick="setTargetTrack(${id})" class="px-2 py-1 ${isTarget ? 'bg-accentCyan text-studioDark' : 'bg-studioDark text-slate-300'} text-[10px] font-bold rounded border border-white/10">
+                            ${isTarget ? 'TARGET REC' : 'Select Track'}
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <canvas id="waveform-${id}" class="w-full h-8 bg-studioDark rounded border border-white/5"></canvas>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-2">
+                        <div class="flex items-center gap-2">
+                            <audio id="audioElement-${id}" controls class="h-6 w-36 ${trk.url ? '' : 'hidden'}"></audio>
+                            ${trk.url ? `<a href="${trk.url}" download="Wanzu_${trk.name}.webm" class="text-[10px] text-accentCyan font-bold hover:underline"><i class="fa-solid fa-download"></i> Stem</a>` : ''}
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-[10px] text-slate-400 font-mono">Vol</label>
+                            <input type="range" min="0" max="1.5" step="0.1" value="${trk.volume}" oninput="vocalTracks[${id}].volume = parseFloat(this.value)" class="w-16">
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        function setTargetTrack(id) {
+            targetTrackId = id;
+            document.getElementById('targetTrackLabel').textContent = `Target: ${vocalTracks[id].name}`;
+            renderVocalTracks();
+        }
+
+        // --- MASTER VOCAL RECORDING WITH FX PROCESSING ---
+        async function toggleMasterRecording() {
+            initAudioContext();
+            const micBtn = document.getElementById('masterMicButton');
+            const micIcon = document.getElementById('micIcon');
+            const statusText = document.getElementById('micStatusText');
+
+            if (!isRecording) {
+                try {
+                    masterStream = await navigator.mediaDevices.getUserMedia({
+                        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+                    });
+
+                    const source = audioCtx.createMediaStreamSource(masterStream);
+                    
+                    // FX Processing Chain
+                    const filter = audioCtx.createBiquadFilter();
+                    const lowCutFreq = parseInt(document.getElementById('noiseGateSelect').value);
+                    filter.type = lowCutFreq > 0 ? 'highpass' : 'allpass';
+                    filter.frequency.value = lowCutFreq || 10;
+
+                    const delay = audioCtx.createDelay();
+                    delay.delayTime.value = parseFloat(document.getElementById('delaySlider').value);
+
+                    source.connect(filter);
+                    filter.connect(delay);
+
+                    const dest = audioCtx.createMediaStreamDestination();
+                    delay.connect(dest);
+
+                    mediaRecorder = new MediaRecorder(dest.stream);
+                    let chunks = [];
+
+                    mediaRecorder.ondataavailable = e => {
+                        if (e.data.size > 0) chunks.push(e.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(chunks, { type: 'audio/webm' });
+                        const url = URL.createObjectURL(blob);
+
+                        vocalTracks[targetTrackId].blob = blob;
+                        vocalTracks[targetTrackId].url = url;
+
+                        renderVocalTracks();
+                        drawWaveform(targetTrackId, blob);
+
+                        statusText.textContent = `Vocal recorded into ${vocalTracks[targetTrackId].name}!`;
+                    };
+
+                    mediaRecorder.start();
+                    isRecording = true;
+
+                    micBtn.classList.add('mic-recording');
+                    micIcon.className = 'fa-solid fa-square';
+                    statusText.textContent = `Recording into ${vocalTracks[targetTrackId].name}... Tap to stop.`;
+
+                } catch (err) {
+                    alert('Microphone access is required to record vocals.');
+                }
+            } else {
+                mediaRecorder.stop();
+                if (masterStream) masterStream.getTracks().forEach(t => t.stop());
+                isRecording = false;
+
+                micBtn.classList.remove('mic-recording');
+                micIcon.className = 'fa-solid fa-microphone';
+            }
+        }
+
+        // --- WAVEFORM CANVAS DRAWING ---
+        function drawWaveform(trackId, blob) {
+            const canvas = document.getElementById(`waveform-${trackId}`);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#00f0ff';
+
+            // Draw mockup studio waveform
+            for (let x = 0; x < canvas.width; x += 3) {
+                const h = Math.random() * (canvas.height - 4);
+                ctx.fillRect(x, (canvas.height - h) / 2, 2, h);
+            }
+        }
+
+        // --- IMPORT CUSTOM BEAT ---
+        function importCustomBeat(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                initAudioContext();
+                audioCtx.decodeAudioData(e.target.result, buffer => {
+                    importedBeatBuffer = buffer;
+                    alert('Custom audio beat file loaded into master engine!');
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // --- MASTER BOUNCE & SONG EXPORTER ---
+        async function bounceMasterSong() {
+            initAudioContext();
+            
+            const exportBox = document.getElementById('masterExportResult');
+            const masterPlayer = document.getElementById('masterPlaybackPlayer');
+            const masterDl = document.getElementById('masterDownloadLink');
+
+            const dest = audioCtx.createMediaStreamDestination();
+            const rec = new MediaRecorder(dest.stream);
+            let chunks = [];
+
+            rec.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+            rec.onstop = () => {
+                const masterBlob = new Blob(chunks, { type: 'audio/webm' });
+                const masterUrl = URL.createObjectURL(masterBlob);
+
+                masterPlayer.src = masterUrl;
+                masterDl.href = masterUrl;
+                exportBox.classList.remove('hidden');
+                exportBox.classList.add('flex');
+            };
+
+            rec.start();
+
+            // Play background beats + custom beat + active vocal audio tracks into dest
+            if (importedBeatBuffer) {
+                const beatSource = audioCtx.createBufferSource();
+                beatSource.buffer = importedBeatBuffer;
+                beatSource.connect(dest);
+                beatSource.connect(audioCtx.destination);
+                beatSource.start();
+            }
+
+            // Loop 8 bars for bounce test
+            toggleAllSelectedBeats();
+
+            setTimeout(() => {
+                if (isAllBeatsPlaying) toggleAllSelectedBeats();
+                if (rec.state !== 'inactive') rec.stop();
+            }, 8000);
+        }
+
+        // --- PROJECT SAVE & LOAD (.WANZU) ---
+        function saveProject() {
+            const projectState = {
+                title: "Wanzu Studio Project",
+                timestamp: new Date().toISOString(),
+                bpm: currentBPM,
+                activeBeatLayers: activeBeatLayers
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(projectState));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", "Song_Project.wanzu");
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+        }
+
+        function loadProject(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.bpm) updateBPM(data.bpm);
+                    alert('Wanzu Studio Project loaded successfully!');
+                } catch (err) {
+                    alert('Invalid .wanzu project file format.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function toggleMasterPlayback() {
+            isMasterPlaying = !isMasterPlaying;
+            const icon = document.getElementById('masterPlayIcon');
+            if (isMasterPlaying) {
+                icon.className = 'fa-solid fa-pause';
+                toggleAllSelectedBeats();
+            } else {
+                icon.className = 'fa-solid fa-play';
+                if (isAllBeatsPlaying) toggleAllSelectedBeats();
+            }
+        }
+    </script>
+</body>
+</html>
